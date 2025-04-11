@@ -1,0 +1,27 @@
+.tespit-page {
+    padding: 60px;
+    text-align: center;
+  }
+  
+  .upload-box {
+    margin-top: 30px;
+  }
+  
+  .upload-box input {
+    margin-bottom: 16px;
+  }
+  
+  .upload-box button {
+    background-color: #1e3a8a;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+  }
+  
+  .upload-box button:hover {
+    background-color: #274acb;
+  }
+  
