@@ -4,7 +4,9 @@ import HomePage from './components/HomePage';
 import TespitPage from './components/Classification';
 import HakkimizdaPage from './components/AboutUs';
 import IletisimPage from './components/Contact';
+import NotFound from './components/NotFound';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 
 function App() {
   return (
@@ -12,10 +14,12 @@ function App() {
       <Navbar />
       <Routes>
         <Route path="/" element={<HomePage />} />
-        <Route path="/tespit" element={<TespitPage />} />
-        <Route path="/hakkimizda" element={<HakkimizdaPage />} />
-        <Route path="/iletisim" element={<IletisimPage />} />
+        <Route path="/classification" element={<TespitPage />} />
+        <Route path="/about-us" element={<HakkimizdaPage />} />
+        <Route path="/contact" element={<IletisimPage />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
+      <Footer />
     </Router>
   );
 }
