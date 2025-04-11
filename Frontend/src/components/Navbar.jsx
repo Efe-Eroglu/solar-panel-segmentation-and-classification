@@ -8,9 +8,9 @@ const Navbar = () => {
       <div className="logo">SolarVision</div>
       <ul className="nav-links">
         <li><NavLink to="/" end>Anasayfa</NavLink></li>
-        <li><NavLink to="/tespit">Tespit</NavLink></li>
-        <li><NavLink to="/hakkimizda">Hakkımızda</NavLink></li>
-        <li><NavLink to="/iletisim">İletişim</NavLink></li>
+        <li><NavLink to="/classification">Tespit</NavLink></li>
+        <li><NavLink to="/about-us">Hakkımızda</NavLink></li>
+        <li><NavLink to="/contact">İletişim</NavLink></li>
       </ul>
     </nav>
   );
