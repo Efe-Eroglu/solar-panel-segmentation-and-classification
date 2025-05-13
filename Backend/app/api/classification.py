@@ -14,7 +14,6 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 @router.post("/predict-class", response_model=PredictionResponse)
 async def classify_image(file: UploadFile = File(...)):
     try:
-        # Geçici dosya kaydet
         file_ext = file.filename.split(".")[-1]
         filename = f"{uuid.uuid4()}.{file_ext}"
         file_path = os.path.join(UPLOAD_DIR, filename)
@@ -22,7 +21,6 @@ async def classify_image(file: UploadFile = File(...)):
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
-        # Tahmini al
         prediction = predict_class(file_path)
 
         return PredictionResponse(
