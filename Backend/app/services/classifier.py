@@ -1,25 +1,66 @@
 import numpy as np
 from tensorflow.keras.preprocessing import image
 from app.core.model_registry import ModelRegistry
+import logging
+import traceback
+import os
+
+logger = logging.getLogger(__name__)
 
 def preprocess_image(img_path, target_size=(224, 224)):
-    img = image.load_img(img_path, target_size=target_size)
-    img_array = image.img_to_array(img)
-    img_array = np.expand_dims(img_array, axis=0)
-    img_array = img_array / 255.0
-    return img_array
+    try:
+        logger.info(f"Preprocessing image: {img_path}")
+        
+        # Dosyanın var olup olmadığını kontrol et
+        if not os.path.exists(img_path):
+            raise FileNotFoundError(f"Dosya bulunamadı: {img_path}")
+            
+        img = image.load_img(img_path, target_size=target_size)
+        img_array = image.img_to_array(img)
+        img_array = np.expand_dims(img_array, axis=0)
+        img_array = img_array / 255.0
+        
+        logger.info(f"Image preprocessed successfully: {img_path}")
+        return img_array
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        logger.error(f"Error preprocessing image: {str(e)}\n{error_detail}")
+        raise
 
 def predict_class(img_path):
-    model = ModelRegistry.classifier_model
-    preprocessed = preprocess_image(img_path)
-    predictions = model.predict(preprocessed)
-    
-    class_index = int(np.argmax(predictions[0]))
-    confidence = float(np.max(predictions[0]))
-    
-    class_labels = ["normal", "faulty", "snow-covered", "bird-drop", "electrical-damage", "dusty"]
-
-    return {
-        "class": class_labels[class_index],
-        "confidence": confidence
-    }
+    try:
+        logger.info(f"Starting classification for image: {img_path}")
+        
+        # Model kontrolü
+        if ModelRegistry.classifier_model is None:
+            logger.error("Classification model is not loaded")
+            raise ValueError("Sınıflandırma modeli yüklenemedi!")
+            
+        preprocessed = preprocess_image(img_path)
+        logger.info("Image preprocessed, running prediction")
+        
+        predictions = ModelRegistry.classifier_model.predict(preprocessed)
+        
+        class_index = int(np.argmax(predictions[0]))
+        confidence = float(np.max(predictions[0]))
+        
+        class_labels = ["normal", "bird-drop", "dusty", "electrical-damage", "faulty", "snow-covered"]
+        
+        # Tüm sınıf olasılıklarını hesapla
+        all_probabilities = {}
+        for i, label in enumerate(class_labels):
+            all_probabilities[label] = float(predictions[0][i])
+        
+        result = {
+            "class": class_labels[class_index],
+            "confidence": confidence,
+            "all_probabilities": all_probabilities
+        }
+        
+        logger.info(f"Classification completed: {result}")
+        return result
+        
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        logger.error(f"Error during classification: {str(e)}\n{error_detail}")
+        raise
