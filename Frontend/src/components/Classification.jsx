@@ -234,11 +234,23 @@ const TespitPage = () => {
             <h3>Segmentasyon Sonuçları</h3>
             <div className="result-content">
               {segmentationResult ? (
-                <img 
-                  src={`data:image/png;base64,${segmentationResult.mask_base64}`} 
-                  alt="Segmentasyon sonucu" 
-                  style={{maxWidth: '100%', borderRadius: '8px'}}
-                />
+                <div className="segmentation-result">
+                  <div className="segmentation-image">
+                    <img 
+                      src={`data:image/png;base64,${segmentationResult.mask_base64}`} 
+                      alt="Segmentasyon sonucu" 
+                      style={{maxWidth: '100%', borderRadius: '8px'}}
+                    />
+                  </div>
+                  <div className="segmentation-overlay" style={{position: 'relative', marginTop: '10px'}}>
+                    <p className="segmentation-info">
+                      <strong>Segmentasyon Açıklaması:</strong> {segmentationResult.description}
+                    </p>
+                    <p className="segmentation-tip">
+                      <small>Segmentasyon maskeleri, panellerin üzerindeki hasarlı bölgeleri vurgular.</small>
+                    </p>
+                  </div>
+                </div>
               ) : selectedImage ? (
                 <img 
                   src={selectedImage} 

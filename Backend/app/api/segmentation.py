@@ -48,7 +48,7 @@ async def segment_uploaded_image(file: UploadFile = File(...)):
         
         return SegmentationResponse(
             mask_base64=result["mask_base64"],
-            description="Segmentation completed successfully"
+            description="Bölütleme tamamlandı. Hasarlı bölgeler renklendirilerek gösterildi."
         )
 
     except Exception as e:
