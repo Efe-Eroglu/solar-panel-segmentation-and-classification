@@ -48,7 +48,8 @@ async def classify_image(file: UploadFile = File(...)):
         
         return PredictionResponse(
             predicted_class=prediction["class"],
-            confidence=prediction["confidence"]
+            confidence=prediction["confidence"],
+            all_probabilities=prediction["all_probabilities"]
         )
 
     except Exception as e:

@@ -44,11 +44,17 @@ def predict_class(img_path):
         class_index = int(np.argmax(predictions[0]))
         confidence = float(np.max(predictions[0]))
         
-        class_labels = ['Bird-Drop', 'Clean', 'Dusty', 'Electrical-Damage', 'Physical-Damage', 'Snow-Covered']
+        class_labels = ["normal", "bird-drop", "dusty", "electrical-damage", "faulty", "snow-covered"]
+        
+        # Tüm sınıf olasılıklarını hesapla
+        all_probabilities = {}
+        for i, label in enumerate(class_labels):
+            all_probabilities[label] = float(predictions[0][i])
         
         result = {
             "class": class_labels[class_index],
-            "confidence": confidence
+            "confidence": confidence,
+            "all_probabilities": all_probabilities
         }
         
         logger.info(f"Classification completed: {result}")

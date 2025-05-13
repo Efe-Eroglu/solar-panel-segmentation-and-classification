@@ -9,6 +9,10 @@ const TespitPage = () => {
   const [segmentationResult, setSegmentationResult] = useState(null);
   const [file, setFile] = useState(null);
   const [error, setError] = useState(null);
+  const [imageStats, setImageStats] = useState(null);
+
+  // Sınıf adlarını doğru sırayla tanımlayalım
+  const classNames = ["normal", "bird-drop", "dusty", "electrical-damage", "faulty", "snow-covered"];
 
   const handleImageUpload = async (e) => {
     const uploadedFile = e.target.files[0];
@@ -53,6 +57,19 @@ const TespitPage = () => {
     setError(null);
     setSelectedImage(URL.createObjectURL(uploadedFile));
     setFile(uploadedFile);
+    
+    // Dosya istatistiklerini ayarla
+    const fileSizeKB = (uploadedFile.size / 1024).toFixed(2);
+    const fileSizeMB = (uploadedFile.size / (1024 * 1024)).toFixed(2);
+    const fileDate = new Date(uploadedFile.lastModified).toLocaleString();
+    
+    setImageStats({
+      name: uploadedFile.name,
+      size: `${fileSizeKB} KB (${fileSizeMB} MB)`,
+      type: uploadedFile.type,
+      lastModified: fileDate
+    });
+    
     await processImage(uploadedFile);
   };
 
@@ -103,6 +120,45 @@ const TespitPage = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Sınıflandırma sonucuna göre hata sınıfının açıklamasını döndürür
+  const getClassDescription = (className) => {
+    const descriptions = {
+      "normal": "Panel normal durumda, herhangi bir hata tespit edilmedi.",
+      "bird-drop": "Panel üzerinde kuş pisliği var, kısmi gölgelenme oluşturuyor.",
+      "dusty": "Panel üzerinde toz birikintisi var, temizlik gerekli olabilir.",
+      "electrical-damage": "Panel üzerinde elektriksel hasar veya bozulma tespit edildi.",
+      "faulty": "Panel üzerinde genel bir hata tespit edildi.",
+      "snow-covered": "Panel kar ile kaplı, elektrik üretimi düşük olabilir."
+    };
+    return descriptions[className] || "Bilinmeyen hata tipi";
+  };
+
+  // Sınıf adına göre önerilen çözüm
+  const getRecommendation = (className) => {
+    const recommendations = {
+      "normal": "Herhangi bir işlem gerekmemektedir.",
+      "bird-drop": "Panel yüzeyi temizlenmelidir. Tekrarını önlemek için kuş engelleyici önlemler alınabilir.",
+      "dusty": "Düzenli temizlik yapılmalıdır. Otomatik temizleme sistemleri değerlendirilebilir.",
+      "electrical-damage": "Acil servis müdahalesi gereklidir. Paneli kullanmayı durdurun.",
+      "faulty": "Panelin detaylı inceleme için servis çağırmanız önerilir.",
+      "snow-covered": "Karın temizlenmesi için güvenli bir şekilde panele müdahale edilmelidir."
+    };
+    return recommendations[className] || "Uzman değerlendirmesi gerekli";
+  };
+
+  // Sınıf adını Türkçe olarak göster
+  const getClassNameTurkish = (className) => {
+    const turkishNames = {
+      "normal": "Normal",
+      "bird-drop": "Kuş Pisliği",
+      "dusty": "Tozlu",
+      "electrical-damage": "Elektriksel Hasar",
+      "faulty": "Hasarlı",
+      "snow-covered": "Kar Kaplı"
+    };
+    return turkishNames[className] || className;
   };
 
   return (
@@ -159,7 +215,7 @@ const TespitPage = () => {
             <div className="result-content">
               {classificationResult ? (
                 <div className="prediction-details">
-                  <h4>Hata Türü: {classificationResult.predicted_class}</h4>
+                  <h4>Hata Türü: {getClassNameTurkish(classificationResult.predicted_class)}</h4>
                   <p>Güven Düzeyi: %{(classificationResult.confidence * 100).toFixed(1)}</p>
                   <div className="confidence-meter">
                     <div 
@@ -195,6 +251,63 @@ const TespitPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Ek Metrikler ve Detaylar */}
+        {(classificationResult || imageStats) && (
+          <div className="metrics-section">
+            <h3>Detaylı Analiz Sonuçları</h3>
+            
+            {imageStats && (
+              <div className="metric-card">
+                <h4>Görüntü Bilgileri</h4>
+                <div className="metrics-grid">
+                  <div className="metric-item">
+                    <span className="metric-label">Dosya Adı:</span>
+                    <span className="metric-value">{imageStats.name}</span>
+                  </div>
+                  <div className="metric-item">
+                    <span className="metric-label">Dosya Boyutu:</span>
+                    <span className="metric-value">{imageStats.size}</span>
+                  </div>
+                  <div className="metric-item">
+                    <span className="metric-label">Dosya Tipi:</span>
+                    <span className="metric-value">{imageStats.type}</span>
+                  </div>
+                  <div className="metric-item">
+                    <span className="metric-label">Son Değişiklik:</span>
+                    <span className="metric-value">{imageStats.lastModified}</span>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {classificationResult && (
+              <div className="metric-card">
+                <h4>Tüm Sınıflandırma Sonuçları</h4>
+                <div className="class-bars">
+                  {classNames.map((cls) => {
+                    // API'den gelen gerçek olasılık değerlerini kullan
+                    const probability = classificationResult.all_probabilities[cls] || 0;
+                    const isActive = cls === classificationResult.predicted_class;
+                    
+                    return (
+                      <div key={cls} className={`class-bar-item ${isActive ? 'active' : ''}`}>
+                        <div className="class-bar-label">{getClassNameTurkish(cls)}</div>
+                        <div className="class-bar-container">
+                          <div 
+                            className="class-bar-fill" 
+                            style={{width: `${probability * 100}%`}}
+                          ></div>
+                          <span className="class-bar-value">{(probability * 100).toFixed(1)}%</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );
