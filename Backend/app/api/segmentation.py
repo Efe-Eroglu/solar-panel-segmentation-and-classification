@@ -1,12 +1,15 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import JSONResponse
-from app.services.segmenter import segment_image
 from app.schemas.predict import SegmentationResponse
 import shutil
 import uuid
 import os
 import logging
 import traceback
+import base64
+from PIL import Image
+import io
+import numpy as np
 
 # Logger ayarları
 logging.basicConfig(level=logging.INFO)
@@ -37,18 +40,39 @@ async def segment_uploaded_image(file: UploadFile = File(...)):
         
         logger.info(f"Saving file to: {file_path}")
         
+        # Dosyayı oku
+        file_bytes = await file.read()
+        
+        # Dosyayı kaydet
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(file_bytes)
         
         logger.info(f"File saved successfully, processing for segmentation")
         
-        result = segment_image(file_path)
+        # Geçici çözüm: Dummy segmentasyon
+        # Gerçek segmentasyon kodu yerine sadece yüklenen görüntüyü döndür
+        # ve boş bir maske oluştur
         
-        logger.info("Segmentation completed successfully")
+        # Dosyayı yeniden aç ve Base64'e çevir
+        img = Image.open(file_path)
+        
+        # Overlay için orijinal resmi kullan
+        buffered = io.BytesIO()
+        img.save(buffered, format="PNG")
+        overlay_base64 = base64.b64encode(buffered.getvalue()).decode('utf-8')
+        
+        # Maske için siyah bir görüntü oluştur
+        mask_img = Image.new('L', img.size, 0)  # Siyah maske
+        mask_buffered = io.BytesIO()
+        mask_img.save(mask_buffered, format="PNG")
+        mask_base64 = base64.b64encode(mask_buffered.getvalue()).decode('utf-8')
+        
+        logger.info("Dummy segmentation completed successfully")
         
         return SegmentationResponse(
-            mask_base64=result["mask_base64"],
-            description="Bölütleme tamamlandı. Hasarlı bölgeler renklendirilerek gösterildi."
+            mask_base64=mask_base64,
+            overlay_base64=overlay_base64,
+            description="Segmentasyon modülü şu anda bakım modunda. Gerçek sonuçlar yerine yüklenen görüntü gösterilmektedir."
         )
 
     except Exception as e:
@@ -57,4 +81,4 @@ async def segment_uploaded_image(file: UploadFile = File(...)):
         raise HTTPException(status_code=500, detail=f"İşlem sırasında hata oluştu: {str(e)}")
     finally:
         # Dosya nesnesini kapat
-        file.file.close()
+        await file.close()

@@ -10,6 +10,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# CORS Ayarları
 origins = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -38,3 +39,4 @@ app.include_router(segmentation.router, prefix="/api", tags=["Segmentation"])
 @app.get("/")
 def read_root():
     return {"message": "API is up and running!"}
+

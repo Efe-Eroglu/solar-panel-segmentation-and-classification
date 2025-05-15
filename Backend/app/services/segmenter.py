@@ -112,8 +112,6 @@ def mask_to_base64(mask):
             mask = (mask / np.max(mask) * 255).astype(np.uint8)
             colored_mask = np.stack([mask, mask, mask], axis=-1)
         
-        # Overlay olarak orijinal görüntüye ekleyin (opsiyonel)
-        
         # Maske görselini oluştur ve base64'e dönüştür
         pil_img = Image.fromarray(colored_mask if 'colored_mask' in locals() else mask)
         buffered = BytesIO()
@@ -125,6 +123,70 @@ def mask_to_base64(mask):
     except Exception as e:
         error_detail = traceback.format_exc()
         logger.error(f"Error converting mask to base64: {str(e)}\n{error_detail}")
+        raise
+
+def create_overlay_image(original_image_path, mask, opacity=0.5):
+    """
+    Orijinal görüntü ile segmentasyon maskesini birleştirip overlay oluşturur
+    
+    Args:
+        original_image_path: Orijinal görüntü dosya yolu
+        mask: Segmentasyon maskesi (numpy array)
+        opacity: Maskenin opaklığı (0-1 arası)
+    
+    Returns:
+        overlay_base64: Base64 kodlanmış overlay görüntüsü
+    """
+    try:
+        logger.info(f"Creating overlay image with mask and original image: {original_image_path}")
+        
+        # Orijinal görüntüyü yükle
+        orig_img = Image.open(original_image_path)
+        orig_img = orig_img.resize((256, 256))  # Maskeyle aynı boyuta getir
+        orig_array = np.array(orig_img)
+        
+        # Renkli maske oluştur
+        if np.max(mask) == 1:
+            # Binary maske
+            colored_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
+            colored_mask[mask == 1] = [0, 255, 0]  # Yeşil
+        elif np.max(mask) <= 255:
+            # Grayscale maske
+            colored_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
+            if len(np.unique(mask)) <= 2:  # Binary mask ama 0-255 aralığında
+                colored_mask[mask > 0] = [255, 0, 0]  # Kırmızı (hasarlı bölgeler için)
+            else:
+                # Çok sınıflı maske
+                for i, val in enumerate(np.unique(mask)):
+                    if val == 0:  # Arkaplan
+                        continue
+                    color = plt.cm.get_cmap('jet')(i % 10)[:3]
+                    color_rgb = [int(c * 255) for c in color]
+                    colored_mask[mask == val] = color_rgb
+        else:
+            # Normalize et
+            mask = (mask / np.max(mask) * 255).astype(np.uint8)
+            colored_mask = np.stack([mask, mask, mask], axis=-1)
+        
+        # Maske kanalını ekleyelim (alpha kanalı gibi)
+        mask_binary = (mask > 0).astype(np.uint8)
+        
+        # Overlay görüntüsünü oluştur
+        overlay = orig_array.copy()
+        for c in range(3):  # RGB kanalları
+            overlay[:,:,c] = orig_array[:,:,c] * (1 - opacity * mask_binary) + colored_mask[:,:,c] * opacity * mask_binary
+        
+        # Görüntüyü base64'e dönüştür
+        overlay_img = Image.fromarray(overlay.astype(np.uint8))
+        buffered = BytesIO()
+        overlay_img.save(buffered, format="PNG")
+        overlay_base64 = base64.b64encode(buffered.getvalue()).decode()
+        
+        logger.info("Overlay image created successfully")
+        return overlay_base64
+    except Exception as e:
+        error_detail = traceback.format_exc()
+        logger.error(f"Error creating overlay image: {str(e)}\n{error_detail}")
         raise
 
 def segment_image(img_path):
@@ -154,7 +216,13 @@ def segment_image(img_path):
         mask = postprocess_mask(prediction)
         mask_base64 = mask_to_base64(mask)
         
-        result = {"mask_base64": mask_base64}
+        # Overlay görüntüsünü oluştur
+        overlay_base64 = create_overlay_image(img_path, mask, opacity=0.6)
+        
+        result = {
+            "mask_base64": mask_base64,
+            "overlay_base64": overlay_base64
+        }
         logger.info("Segmentation process completed successfully")
         
         return result

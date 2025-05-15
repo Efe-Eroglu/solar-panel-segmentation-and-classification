@@ -10,6 +10,7 @@ const TespitPage = () => {
   const [file, setFile] = useState(null);
   const [error, setError] = useState(null);
   const [imageStats, setImageStats] = useState(null);
+  const [activeSegTab, setActiveSegTab] = useState('overlay');
 
   // Sınıf adlarını doğru sırayla tanımlayalım
   const classNames = ["normal", "bird-drop", "dusty", "electrical-damage", "faulty", "snow-covered"];
@@ -97,6 +98,57 @@ const TespitPage = () => {
 
       const classData = await classResponse.json();
       console.log("Sınıflandırma sonucu:", classData);
+      
+      // Yeni API formatını eski formata dönüştür (geriye uyumluluk için)
+      if (classData.predictions && classData.predictions.length > 0) {
+        // Top prediction sınıf adını frontend formatına çevir
+        const topPrediction = classData.predictions[0];
+        const className = topPrediction.class.toLowerCase().replace(/\s+/g, '-');
+        
+        // Sınıf isimlerini düzgün eşleştirme
+        let frontendClassName = className;
+        
+        // Sınıf adı eşleştirme tablosu
+        const classNameMap = {
+          'electrical-damage': 'electrical-damage',
+          'bird-drop': 'bird-drop',
+          'dusty': 'dusty',
+          'physical-damage': 'faulty',
+          'snow-covered': 'snow-covered',
+          'clean': 'normal'
+        };
+        
+        // Eşleştirme varsa onu kullan
+        if (classNameMap[className]) {
+          frontendClassName = classNameMap[className];
+        }
+        
+        console.log(`Sınıf dönüşümü: ${className} -> ${frontendClassName}`);
+        
+        // predicted_class ve confidence değerlerini güncelle
+        classData.predicted_class = frontendClassName;
+        classData.confidence = topPrediction.confidence;
+        
+        // Tüm olasılıkları oluştur
+        if (!classData.all_probabilities) {
+          classData.all_probabilities = {};
+          classNames.forEach(className => {
+            // Varsayılan olarak tüm olasılıkları 0 yap
+            classData.all_probabilities[className] = 0;
+          });
+          
+          // Tahminleri ekle
+          classData.predictions.forEach(pred => {
+            // Sınıf ismini düzgün frontend formatına dönüştür
+            const predClassName = pred.class.toLowerCase().replace(/\s+/g, '-');
+            const frontendPredClass = classNameMap[predClassName] || predClassName;
+            
+            // Olasılık değerini ayarla
+            classData.all_probabilities[frontendPredClass] = pred.confidence;
+          });
+        }
+      }
+      
       setClassificationResult(classData);
 
       // Call segmentation API
@@ -223,6 +275,8 @@ const TespitPage = () => {
                       style={{width: `${classificationResult.confidence * 100}%`}}
                     ></div>
                   </div>
+                  <p style={{fontSize: '0.8em', color: '#64748b', marginTop: '0.5rem'}}>
+                  </p>
                 </div>
               ) : (
                 <div className="result-placeholder">Analiz sonuçları burada görüntülenecek</div>
@@ -236,8 +290,26 @@ const TespitPage = () => {
               {segmentationResult ? (
                 <div className="segmentation-result">
                   <div className="segmentation-image">
+                    <div className="image-tabs">
+                      <button 
+                        className={activeSegTab === 'overlay' ? 'active' : ''} 
+                        onClick={() => setActiveSegTab('overlay')}
+                      >
+                        Hasarlı Bölgeler
+                      </button>
+                      <button 
+                        className={activeSegTab === 'mask' ? 'active' : ''} 
+                        onClick={() => setActiveSegTab('mask')}
+                      >
+                        Maske Haritası
+                      </button>
+                    </div>
                     <img 
-                      src={`data:image/png;base64,${segmentationResult.mask_base64}`} 
+                      src={
+                        activeSegTab === 'overlay' 
+                          ? `data:image/png;base64,${segmentationResult.overlay_base64}`
+                          : `data:image/png;base64,${segmentationResult.mask_base64}`
+                      } 
                       alt="Segmentasyon sonucu" 
                       style={{maxWidth: '100%', borderRadius: '8px'}}
                     />
@@ -315,6 +387,54 @@ const TespitPage = () => {
                       </div>
                     );
                   })}
+                </div>
+                <p style={{
+                  fontSize: '0.8em', 
+                  color: '#64748b', 
+                  textAlign: 'center', 
+                  fontStyle: 'italic',
+                  marginTop: '0.5rem'
+                }}>
+                </p>
+              </div>
+            )}
+
+            {classificationResult && classificationResult.predictions && classificationResult.predictions.length > 0 && (
+              <div className="metric-card">
+                <h4>Tüm Tahminler (Olasılık Sırasına Göre)</h4>
+                <div className="predictions-table">
+                  <table style={{width: '100%', borderCollapse: 'collapse', marginTop: '10px'}}>
+                    <thead>
+                      <tr>
+                        <th style={{textAlign: 'left', padding: '8px', borderBottom: '1px solid #e2e8f0'}}>Sınıf</th>
+                        <th style={{textAlign: 'right', padding: '8px', borderBottom: '1px solid #e2e8f0'}}>Olasılık</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {classificationResult.predictions.map((pred, index) => {
+                        const className = pred.class.toLowerCase().replace(/\s+/g, '-');
+                        let displayName = getClassNameTurkish(className) || pred.class;
+                        return (
+                          <tr key={index} style={{backgroundColor: index === 0 ? '#f0f9ff' : 'transparent'}}>
+                            <td style={{padding: '8px', borderBottom: '1px solid #f1f5f9'}}>
+                              {displayName}
+                              {index === 0 && <span style={{marginLeft: '8px', fontSize: '0.8em', color: '#3b82f6', fontWeight: 'bold'}}>En Yüksek</span>}
+                            </td>
+                            <td style={{textAlign: 'right', padding: '8px', borderBottom: '1px solid #f1f5f9', fontWeight: index === 0 ? 'bold' : 'normal'}}>
+                              %{(pred.confidence * 100).toFixed(2)}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <p style={{
+                    fontSize: '0.8em', 
+                    color: '#64748b', 
+                    fontStyle: 'italic',
+                    marginTop: '0.5rem'
+                  }}>
+                    </p>
                 </div>
               </div>
             )}
