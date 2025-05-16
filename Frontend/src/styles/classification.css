@@ -440,3 +440,134 @@
     margin-bottom: 0.35rem;
   }
 }
+
+/* Segmentation component styling */
+.segmentation-image {
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.image-tabs {
+  display: flex;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f1f5f9;
+  border-radius: 8px 8px 0 0;
+}
+
+.image-tabs button {
+  flex: 1;
+  padding: 10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  color: #64748b;
+  transition: all 0.2s ease;
+}
+
+.image-tabs button:hover {
+  background-color: #e2e8f0;
+  color: #334155;
+}
+
+.image-tabs button.active {
+  background-color: #fff;
+  color: #0f172a;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.mask-legend {
+  padding: 12px;
+  background-color: #f8fafc;
+  border-radius: 0 0 8px 8px;
+  border-top: 1px solid #e2e8f0;
+  font-size: 0.8rem;
+  color: #666;
+  text-align: center;
+}
+
+.mask-legend p {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.segmentation-result {
+  width: 100%;
+}
+
+/* Darkroom effect for mask view */
+.darkroom-bg {
+  background-color: #000 !important;
+  padding: 10px;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Mask actions */
+.mask-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+  padding: 5px 0 15px;
+}
+
+.download-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+}
+
+.download-button:hover {
+  background-color: #2563eb;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.4);
+}
+
+.download-button svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Processing indicator */
+.processing-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+}
+
+.processing-indicator p {
+  color: #fff;
+  margin-top: 10px;
+  font-size: 0.9rem;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.spinner-small {
+  width: 30px;
+  height: 30px;
+  border: 3px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: spin 1s ease-in-out infinite;
+}

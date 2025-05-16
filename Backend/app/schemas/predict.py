@@ -10,3 +10,9 @@ class SegmentationResponse(BaseModel):
     mask_base64: str
     overlay_base64: str
     description: str
+
+# Dosya URL'leri ile yanıt veren yeni model
+class SegmentationImageResponse(BaseModel):
+    mask_url: str
+    overlay_url: str
+    description: str

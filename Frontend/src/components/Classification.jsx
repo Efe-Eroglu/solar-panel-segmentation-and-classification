@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import '../styles/classification.css';
+import Segmentation from './Segmentation';
 
 const TespitPage = () => {
   const [selectedImage, setSelectedImage] = useState(null);
@@ -72,6 +73,51 @@ const TespitPage = () => {
     });
     
     await processImage(uploadedFile);
+  };
+
+  // Segmentasyon görüntülerini direkt erişim için URL oluşturma
+  const createDirectImageUrls = (file) => {
+    // Geçerli bir dosya yoksa boş döndür
+    if (!file) return { overlayUrl: '', maskUrl: '' };
+    
+    // Form data oluştur ve dosyayı ekle - backend bunu yükleyecek
+    // Ancak burada overlay ve mask için doğrudan erişim URL'lerini tanımlıyoruz
+    const baseUrl = 'http://localhost:8000/api/segment-image';
+    
+    // Type parametresi ile hangi görüntünün döneceğini belirtiyoruz
+    const overlayUrl = `${baseUrl}?type=overlay`;
+    const maskUrl = `${baseUrl}?type=mask`;
+    
+    return { overlayUrl, maskUrl };
+  };
+
+  // Segmentasyon için modelden direkt resim almak üzere kullanılacak
+  const fetchSegmentationImage = async (imageFile, type = 'overlay') => {
+    try {
+      const formData = new FormData();
+      formData.append('file', imageFile);
+      
+      // istek öncesi zaman damgası (cache önlemek için)
+      const timestamp = new Date().getTime();
+      
+      const response = await fetch(`http://localhost:8000/api/segment-image?type=${type}&t=${timestamp}`, {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Segmentasyon hatası: Durum kodu ${response.status}`);
+      }
+      
+      // Response bir görüntü olacak (blob olarak alalım)
+      const imageBlob = await response.blob();
+      
+      // Blob'dan URL oluşturalım (frontend'te görüntülemek için)
+      return URL.createObjectURL(imageBlob);
+    } catch (error) {
+      console.error(`${type} görüntüsü alınırken hata:`, error);
+      throw error;
+    }
   };
 
   const processImage = async (imageFile) => {
@@ -151,21 +197,28 @@ const TespitPage = () => {
       
       setClassificationResult(classData);
 
-      // Call segmentation API
-      console.log("Segmentasyon API'sine istek gönderiliyor...");
-      const segResponse = await fetch('http://localhost:8000/api/segment-image', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!segResponse.ok) {
-        const errorData = await segResponse.json();
-        throw new Error(`Segmentasyon hatası: ${errorData.detail || 'Bilinmeyen hata'}`);
+      // Segmentasyon görüntülerini doğrudan almak için yeni yaklaşım
+      console.log("Segmentasyon görüntüleri alınıyor...");
+      
+      try {
+        // Overlay ve mask görüntülerini paralel olarak al
+        const [overlayUrl, maskUrl] = await Promise.all([
+          fetchSegmentationImage(imageFile, 'overlay'),
+          fetchSegmentationImage(imageFile, 'mask')
+        ]);
+        
+        // Sonuçları kaydet
+        setSegmentationResult({
+          overlay_url: overlayUrl,
+          mask_url: maskUrl,
+          description: "Segmentasyon tamamlandı. Görüntüler doğrudan PNG formatında gösteriliyor."
+        });
+        
+        console.log("Segmentasyon görüntüleri başarıyla alındı");
+      } catch (segError) {
+        console.error("Segmentasyon görüntüleri alınırken hata:", segError);
+        setError(`Segmentasyon hatası: ${segError.message}`);
       }
-
-      const segData = await segResponse.json();
-      console.log("Segmentasyon sonucu alındı");
-      setSegmentationResult(segData);
     } catch (error) {
       console.error('Error processing image:', error);
       setError(`Resim işlenirken bir hata oluştu: ${error.message}`);
@@ -288,32 +341,13 @@ const TespitPage = () => {
             <h3>Segmentasyon Sonuçları</h3>
             <div className="result-content">
               {segmentationResult ? (
-                <div className="segmentation-result">
-                  <div className="segmentation-image">
-                    <div className="image-tabs">
-                      <button 
-                        className={activeSegTab === 'overlay' ? 'active' : ''} 
-                        onClick={() => setActiveSegTab('overlay')}
-                      >
-                        Hasarlı Bölgeler
-                      </button>
-                      <button 
-                        className={activeSegTab === 'mask' ? 'active' : ''} 
-                        onClick={() => setActiveSegTab('mask')}
-                      >
-                        Maske Haritası
-                      </button>
-                    </div>
-                    <img 
-                      src={
-                        activeSegTab === 'overlay' 
-                          ? `data:image/png;base64,${segmentationResult.overlay_base64}`
-                          : `data:image/png;base64,${segmentationResult.mask_base64}`
-                      } 
-                      alt="Segmentasyon sonucu" 
-                      style={{maxWidth: '100%', borderRadius: '8px'}}
-                    />
-                  </div>
+                <div>
+                  <Segmentation 
+                    maskUrl={segmentationResult.mask_url}
+                    overlayUrl={segmentationResult.overlay_url}
+                    activeTab={activeSegTab}
+                    onTabChange={setActiveSegTab}
+                  />
                   <div className="segmentation-overlay" style={{position: 'relative', marginTop: '10px'}}>
                     <p className="segmentation-info">
                       <strong>Segmentasyon Açıklaması:</strong> {segmentationResult.description}
