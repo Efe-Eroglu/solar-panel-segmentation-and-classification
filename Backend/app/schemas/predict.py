@@ -8,4 +8,5 @@ class PredictionResponse(BaseModel):
 
 class SegmentationResponse(BaseModel):
     mask_base64: str
+    overlay_base64: str
     description: str

@@ -1,4 +1,4 @@
-from tensorflow.keras.models import load_model
+import tensorflow as tf
 import os
 import logging
 import traceback
@@ -7,38 +7,64 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class ModelRegistry:
+    """
+    Uygulamanın kullandığı modellerin merkezi kaydı.
+    """
+    
+    # Modeller
     classifier_model = None
     segmenter_model = None
-
+    
     @classmethod
     def load_models(cls):
+        """
+        Tüm modelleri yükler
+        """
+        logger.info("Modeller yükleniyor...")
+        cls.load_classifier_model()
+        cls.load_segmenter_model()
+        logger.info("Tüm modeller yüklendi.")
+        
+    @classmethod
+    def load_classifier_model(cls):
+        """
+        Sınıflandırma modelini yükler
+        """
         try:
-            logger.info("🔄 Modeller yükleniyor...")
+            # Model yükleme
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model", "solar_model.keras")
             
-            # Model dosyalarının varlığını kontrol et
-            cls_model_path = "app/model/classification_model.keras"
-            seg_model_path = "app/model/segmentation_model.h5"
-            
-            if not os.path.exists(cls_model_path):
-                logger.error(f"Classification model file not found at {cls_model_path}")
-                raise FileNotFoundError(f"Sınıflandırma model dosyası bulunamadı: {cls_model_path}")
-                
-            if not os.path.exists(seg_model_path):
-                logger.error(f"Segmentation model file not found at {seg_model_path}")
-                raise FileNotFoundError(f"Segmentasyon model dosyası bulunamadı: {seg_model_path}")
-            
-            # Modelleri yükle
-            logger.info(f"Loading classification model from {cls_model_path}")
-            cls.classifier_model = load_model(cls_model_path)
-            logger.info("Classification model loaded successfully")
-            
-            logger.info(f"Loading segmentation model from {seg_model_path}")
-            cls.segmenter_model = load_model(seg_model_path)
-            logger.info("Segmentation model loaded successfully")
-            
-            logger.info("✅ Modeller başarıyla yüklendi.")
-            
+            if os.path.exists(model_path):
+                logger.info(f"Sınıflandırma modeli yükleniyor: {model_path}")
+                cls.classifier_model = tf.keras.models.load_model(model_path)
+                logger.info("Sınıflandırma modeli başarıyla yüklendi")
+            else:
+                # Alternatif: Servis kodu içindeki modeli kullan
+                from app.services.classifier import classifier_model
+                if classifier_model is not None:
+                    cls.classifier_model = classifier_model
+                    logger.info("Sınıflandırma modeli servis kodundan alındı")
+                else:
+                    logger.warning(f"Sınıflandırma modeli bulunamadı: {model_path}")
         except Exception as e:
-            error_detail = traceback.format_exc()
-            logger.error(f"❌ Model yükleme hatası: {str(e)}\n{error_detail}")
-            raise Exception(f"Model yükleme sırasında hata oluştu: {str(e)}")
+            logger.error(f"Sınıflandırma modeli yüklenirken hata: {str(e)}")
+            # Modeli yükleyemezsek hata verme, sadece log
+    
+    @classmethod
+    def load_segmenter_model(cls):
+        """
+        Segmentasyon modelini yükler
+        """
+        try:
+            # Segmentasyon modeli yükleme
+            model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model", "segmentation_model.keras")
+            
+            if os.path.exists(model_path):
+                logger.info(f"Segmentasyon modeli yükleniyor: {model_path}")
+                cls.segmenter_model = tf.keras.models.load_model(model_path)
+                logger.info("Segmentasyon modeli başarıyla yüklendi")
+            else:
+                logger.warning(f"Segmentasyon modeli bulunamadı: {model_path}")
+        except Exception as e:
+            logger.error(f"Segmentasyon modeli yüklenirken hata: {str(e)}")
+            # Modeli yükleyemezsek hata verme, sadece log

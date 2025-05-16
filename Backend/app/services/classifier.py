@@ -1,66 +1,143 @@
 import numpy as np
-from tensorflow.keras.preprocessing import image
-from app.core.model_registry import ModelRegistry
+import tensorflow as tf
+from PIL import Image
+import io
 import logging
 import traceback
 import os
 
 logger = logging.getLogger(__name__)
 
-def preprocess_image(img_path, target_size=(224, 224)):
+# Model ve sınıf isimleri
+model_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "model", "solar_model.keras")
+try:
+    classifier_model = tf.keras.models.load_model(model_path)
+    logger.info(f"Sınıflandırma modeli başarıyla yüklendi: {model_path}")
+except Exception as e:
+    logger.error(f"Sınıflandırma modeli yüklenirken hata oluştu: {e}")
+    classifier_model = None
+
+# Modelin kullandığı sınıf adları
+class_names = [
+    'Bird-drop', 
+    'Clean', 
+    'Dusty', 
+    'Electrical-damage', 
+    'Physical-damage', 
+    'Snow-covered'
+]
+
+# Frontend'de kullanılan sınıf adları
+frontend_classes = ["normal", "bird-drop", "dusty", "electrical-damage", "faulty", "snow-covered"]
+backend_classes = ["clean", "bird-drop", "dusty", "electrical-damage", "physical-damage", "snow-covered"]
+
+def preprocess_image(img_path=None, img_bytes=None, target_size=(244, 244)):
+    """
+    Görüntüyü sınıflandırma için hazırlar.
+    img_path ve img_bytes'dan biri sağlanmalıdır.
+    """
     try:
-        logger.info(f"Preprocessing image: {img_path}")
+        logger.info(f"Görüntü ön işlemesi başlatılıyor")
         
-        # Dosyanın var olup olmadığını kontrol et
-        if not os.path.exists(img_path):
-            raise FileNotFoundError(f"Dosya bulunamadı: {img_path}")
+        if img_path:
+            # Dosyadan yükleme
+            if not os.path.exists(img_path):
+                raise FileNotFoundError(f"Dosya bulunamadı: {img_path}")
             
-        img = image.load_img(img_path, target_size=target_size)
-        img_array = image.img_to_array(img)
-        img_array = np.expand_dims(img_array, axis=0)
-        img_array = img_array / 255.0
+            img = Image.open(img_path).convert('RGB')
+            logger.info(f"Görüntü dosyadan yüklendi: {img_path}")
+            
+        elif img_bytes:
+            # Byte dizisinden yükleme
+            img = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+            logger.info("Görüntü byte dizisinden yüklendi")
+            
+        else:
+            raise ValueError("Görüntü yüklenemedi: img_path veya img_bytes sağlanmalı")
         
-        logger.info(f"Image preprocessed successfully: {img_path}")
+        # Boyutlandırma
+        img = img.resize(target_size)
+        img_array = np.array(img)
+        
+        # VGG16 preprocessing
+        img_array = tf.keras.applications.vgg16.preprocess_input(img_array)
+        img_array = np.expand_dims(img_array, axis=0)
+        
+        logger.info(f"Ön işleme tamamlandı: {img_array.shape}, min: {np.min(img_array)}, max: {np.max(img_array)}")
         return img_array
+        
     except Exception as e:
         error_detail = traceback.format_exc()
-        logger.error(f"Error preprocessing image: {str(e)}\n{error_detail}")
+        logger.error(f"Ön işleme hatası: {str(e)}\n{error_detail}")
         raise
 
-def predict_class(img_path):
+def predict_class(img_path=None, img_bytes=None):
+    """
+    Görüntüyü sınıflandırır.
+    img_path veya img_bytes'dan biri sağlanmalıdır.
+    """
     try:
-        logger.info(f"Starting classification for image: {img_path}")
+        logger.info("Sınıflandırma başlatıldı")
         
         # Model kontrolü
-        if ModelRegistry.classifier_model is None:
-            logger.error("Classification model is not loaded")
-            raise ValueError("Sınıflandırma modeli yüklenemedi!")
+        if classifier_model is None:
+            error_msg = "Sınıflandırma modeli yüklenemedi"
+            logger.error(error_msg)
+            raise ValueError(error_msg)
             
-        preprocessed = preprocess_image(img_path)
-        logger.info("Image preprocessed, running prediction")
+        # Ön işleme
+        if img_path:
+            logger.info(f"Dosyadan sınıflandırma: {img_path}")
+            preprocessed = preprocess_image(img_path=img_path)
+        elif img_bytes:
+            logger.info("Byte dizisinden sınıflandırma")
+            preprocessed = preprocess_image(img_bytes=img_bytes)
+        else:
+            raise ValueError("Görüntü yüklenemedi: img_path veya img_bytes sağlanmalı")
         
-        predictions = ModelRegistry.classifier_model.predict(preprocessed)
+        logger.info("Tahmin yapılıyor...")
         
-        class_index = int(np.argmax(predictions[0]))
-        confidence = float(np.max(predictions[0]))
+        # Tahmin
+        predictions = classifier_model.predict(preprocessed)
         
-        class_labels = ["normal", "bird-drop", "dusty", "electrical-damage", "faulty", "snow-covered"]
+        # Softmax ile olasılık dağılımına çevir
+        probs = tf.nn.softmax(predictions[0]).numpy()
         
-        # Tüm sınıf olasılıklarını hesapla
+        # Sonuçları logla
+        logger.info(f"Ham tahmin değerleri: {predictions[0]}")
+        logger.info(f"Softmax sonrası olasılıklar: {probs}")
+        
+        # En yüksek olasılıklı sınıf
+        class_index = int(np.argmax(probs))
+        confidence = float(probs[class_index])
+        backend_class = backend_classes[class_index]
+        
+        # Backend sınıf adını frontende olan karşılığını bul
+        for i, bc in enumerate(backend_classes):
+            if bc == backend_class:
+                frontend_class = frontend_classes[i]
+                break
+        else:
+            frontend_class = "unknown"
+        
+        # Her sınıfın olasılıklarını hesapla
         all_probabilities = {}
-        for i, label in enumerate(class_labels):
-            all_probabilities[label] = float(predictions[0][i])
+        for i, backend_class in enumerate(backend_classes):
+            frontend_class = frontend_classes[i]
+            all_probabilities[frontend_class] = float(probs[i])
+        
+        logger.info(f"Tahmin sınıfı: {frontend_class}, güven: {confidence:.4f}")
         
         result = {
-            "class": class_labels[class_index],
+            "class": frontend_class,
             "confidence": confidence,
             "all_probabilities": all_probabilities
         }
         
-        logger.info(f"Classification completed: {result}")
+        logger.info("Sınıflandırma tamamlandı")
         return result
         
     except Exception as e:
         error_detail = traceback.format_exc()
-        logger.error(f"Error during classification: {str(e)}\n{error_detail}")
-        raise
+        logger.error(f"Sınıflandırma hatası: {str(e)}\n{error_detail}")
+        raise 

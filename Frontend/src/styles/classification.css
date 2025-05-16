@@ -380,6 +380,33 @@
   z-index: 1;
 }
 
+/* Segmentasyon görüntü sekmeleri için stil */
+.image-tabs {
+  display: flex;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.image-tabs button {
+  background-color: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.image-tabs button.active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #2563eb;
+}
+
+.image-tabs button:hover:not(.active) {
+  background-color: #e5e7eb;
+}
+
 @media (max-width: 768px) {
   .tespit-page {
     padding: 2.5rem 1.25rem;
